@@ -12,6 +12,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/linnv/logx"
 )
 
 // OutboundServer - In case you need to start server, this Struct have it covered
@@ -26,14 +28,14 @@ type OutboundServer struct {
 
 // Start - Will start new outbound server
 func (s *OutboundServer) Start() error {
-	Notice("Starting Freeswitch Outbound Server @ (address: %s) ...", s.Addr)
+	logx.Debugfln("Starting Freeswitch Outbound Server @ (address: %s) ...", s.Addr)
 
 	var err error
 
 	s.Listener, err = net.Listen(s.Proto, s.Addr)
 
 	if err != nil {
-		Error(ECouldNotStartListener, err)
+		logx.Errorfln(ECouldNotStartListener, err)
 		return err
 	}
 
@@ -41,12 +43,12 @@ func (s *OutboundServer) Start() error {
 
 	go func() {
 		for {
-			Warning("Waiting for incoming connections ...")
+			logx.Warnfln("Waiting for incoming connections ...")
 
 			c, err := s.Accept()
 
 			if err != nil {
-				Error(EListenerConnection, err)
+				logx.Errorfln(EListenerConnection, err)
 				quit <- true
 				break
 			}
@@ -57,7 +59,7 @@ func (s *OutboundServer) Start() error {
 				m:    make(chan *Message),
 			}
 
-			Notice("Got new connection from: %s", conn.OriginatorAddr())
+			logx.Debugfln("Got new connection from: %s", conn.OriginatorAddr())
 
 			go conn.Handle()
 
@@ -75,7 +77,7 @@ func (s *OutboundServer) Start() error {
 
 // Stop - Will close server connection once SIGTERM/Interrupt is received
 func (s *OutboundServer) Stop() {
-	Warning("Stopping Outbound Server ...")
+	logx.Warnfln("Stopping Outbound Server ...")
 	s.Close()
 }
 

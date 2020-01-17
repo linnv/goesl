@@ -17,6 +17,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/linnv/logx"
 )
 
 // Message - Freeswitch Message that is received by GoESL. Message struct is here to help with parsing message
@@ -36,7 +38,14 @@ func (m *Message) String() string {
 
 // GetCallUUID - Will return Caller-Unique-Id
 func (m *Message) GetCallUUID() string {
-	return m.GetHeader("Caller-Unique-Id")
+	if ret := m.GetHeader("Caller-Unique-Id"); ret != "" {
+		return ret
+	}
+
+	if ret := m.GetHeader("Caller-Unique-ID"); ret != "" {
+		return ret
+	}
+	return ""
 }
 
 // GetHeader - Will return message header value, or "" if the key is not set.
@@ -51,12 +60,12 @@ func (m *Message) Parse() error {
 	cmr, err := m.tr.ReadMIMEHeader()
 
 	if err != nil && err.Error() != "EOF" {
-		Error(ECouldNotReadMIMEHeaders, err)
+		logx.Errorfln(ECouldNotReadMIMEHeaders, err)
 		return err
 	}
 
 	if cmr.Get("Content-Type") == "" {
-		Debug("Not accepting message because of empty content type. Just whatever with it ...")
+		logx.Debugfln("Not accepting message because of empty content type. Just whatever with it ...")
 		return fmt.Errorf("Parse EOF")
 	}
 
@@ -66,23 +75,22 @@ func (m *Message) Parse() error {
 		l, err := strconv.Atoi(lv)
 
 		if err != nil {
-			Error(EInvalidContentLength, err)
+			logx.Errorfln(EInvalidContentLength, err)
 			return err
 		}
 
 		m.Body = make([]byte, l)
 
 		if _, err := io.ReadFull(m.r, m.Body); err != nil {
-			Error(ECouldNotReadyBody, err)
+			logx.Errorfln(ECouldNotReadyBody, err)
 			return err
 		}
 	}
 
 	msgType := cmr.Get("Content-Type")
 
-	Debug("Got message content (type: %s). Searching if we can handle it ...", msgType)
-
 	if !StringInSlice(msgType, AvailableMessageTypes) {
+		logx.Debugfln("Got message content (type: %s) wihch  we can't handle!", msgType)
 		return fmt.Errorf(EUnsupportedMessageType, msgType, AvailableMessageTypes)
 	}
 
@@ -97,7 +105,7 @@ func (m *Message) Parse() error {
 				m.Headers[k], err = url.QueryUnescape(v[0])
 
 				if err != nil {
-					Error(ECouldNotDecode, err)
+					logx.Errorfln(ECouldNotDecode, err)
 					continue
 				}
 			}
@@ -107,7 +115,7 @@ func (m *Message) Parse() error {
 	switch msgType {
 	case "text/disconnect-notice":
 		for k, v := range cmr {
-			Debug("Message (header: %s) -> (value: %v)", k, v)
+			logx.Debugfln("Message (header: %s) -> (value: %v)", k, v)
 		}
 	case "command/reply":
 		reply := cmr.Get("Reply-Text")
@@ -131,16 +139,14 @@ func (m *Message) Parse() error {
 
 		// Copy back in:
 		for k, v := range decoded {
-			switch v.(type) {
-			case string:
-				m.Headers[k] = v.(string)
-			default:
-				//delete(m.Headers, k)
-				Warning("Removed non-string property (%s)", k)
+			if str, ok := v.(string); ok {
+				m.Headers[k] = str
+				continue
 			}
+			logx.Warnfln("Removed non-string property (%s), value:%v", k, v)
 		}
 
-		if v, _ := m.Headers["_body"]; v != "" {
+		if v := m.Headers["_body"]; v != "" {
 			m.Body = []byte(v)
 			delete(m.Headers, "_body")
 		} else {
@@ -162,14 +168,14 @@ func (m *Message) Parse() error {
 			length, err := strconv.Atoi(vl)
 
 			if err != nil {
-				Error(EInvalidContentLength, err)
+				logx.Errorfln(EInvalidContentLength, err)
 				return err
 			}
 
 			m.Body = make([]byte, length)
 
 			if _, err = io.ReadFull(r, m.Body); err != nil {
-				Error(ECouldNotReadyBody, err)
+				logx.Errorfln(ECouldNotReadyBody, err)
 				return err
 			}
 		}

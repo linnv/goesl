@@ -13,6 +13,8 @@ import (
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/linnv/logx"
 )
 
 // Client - In case you need to do inbound dialing against freeswitch server in order to originate call or see
@@ -48,20 +50,20 @@ func (c *Client) Authenticate() error {
 
 	m, err := newMessage(bufio.NewReaderSize(c, ReadBufferSize), false)
 	if err != nil {
-		Error(ECouldNotCreateMessage, err)
+		logx.Errorfln(ECouldNotCreateMessage, err)
 		return err
 	}
 
 	cmr, err := m.tr.ReadMIMEHeader()
 	if err != nil && err.Error() != "EOF" {
-		Error(ECouldNotReadMIMEHeaders, err)
+		logx.Errorfln(ECouldNotReadMIMEHeaders, err)
 		return err
 	}
 
-	Debug("A: %v\n", cmr)
+	logx.Debugfln("A: %v\n", cmr)
 
 	if cmr.Get("Content-Type") != "auth/request" {
-		Error(EUnexpectedAuthHeader, cmr.Get("Content-Type"))
+		logx.Errorfln(EUnexpectedAuthHeader, cmr.Get("Content-Type"))
 		return fmt.Errorf(EUnexpectedAuthHeader, cmr.Get("Content-Type"))
 	}
 
@@ -73,12 +75,12 @@ func (c *Client) Authenticate() error {
 
 	am, err := m.tr.ReadMIMEHeader()
 	if err != nil && err.Error() != "EOF" {
-		Error(ECouldNotReadMIMEHeaders, err)
+		logx.Errorfln(ECouldNotReadMIMEHeaders, err)
 		return err
 	}
 
 	if am.Get("Reply-Text") != "+OK accepted" {
-		Error(EInvalidPassword, c.Passwd)
+		logx.Errorfln(EInvalidPassword, c.Passwd)
 		return fmt.Errorf(EInvalidPassword, c.Passwd)
 	}
 

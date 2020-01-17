@@ -8,13 +8,14 @@ package examples
 
 import (
 	"fmt"
-	. "github.com/0x19/goesl"
 	"os"
 	"runtime"
 	"strings"
+
+	. "github.com/0x19/goesl"
 )
 
-var welcomeFile = "%s/media/welcome.wav"
+var welcomeFile = "%s/../media/welcome.wav"
 
 func main() {
 
